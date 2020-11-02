@@ -1,5 +1,6 @@
 import express from 'express';
 import { getMinerInfo } from './report-pox-krypton.js'
+import heapdump from 'heapdump';
 
 const app = express()
 const port = 23456
@@ -13,6 +14,10 @@ app.get('/minerList', async (req, res) => {
   console.log("result:", result)
   res.send(result)
 })
+
+setInterval(function(){
+  heapdump.writeSnapshot('./' + Date.now() + '.heapsnapshot');
+}, 360000);
 
 app.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`)
