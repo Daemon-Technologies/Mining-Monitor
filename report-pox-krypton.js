@@ -8,8 +8,29 @@ import c32 from 'c32check'
 
 
 
-export async function getMinerInfo() {
+export async function getMinerInfo(param) {
   
+  let fromHeight = param.fromHeight
+  let toHeight = param.toHeight
+  console.log(fromHeight,toHeight)
+  let sqlAddup = ""
+  if (fromHeight == undefined || toHeight == undefined){
+    if (toHeight !== undefined)
+      sqlAddup = `where block_height <= ${toHeight}`
+    else if (fromHeight !== undefined)
+      sqlAddup = `where block_height >= ${fromHeight}`
+  }
+  else{
+    sqlAddup = `where block_height >= ${fromHeight} and block_height <= ${toHeight}`
+  }
+    
+
+  console.log(sqlAddup)
+
+  if (toHeight < fromHeight)
+    return {"Status": "Interval Error"}
+
+  //return [sqlAddup]
   const root = ''
 
   const burnchain_db_path = 'burnchain/db/bitcoin/regtest/burnchain.db'
@@ -46,13 +67,13 @@ export async function getMinerInfo() {
   })
 
   // burnchain queries
-  const stmt_all_burnchain_headers = burnchain_db.prepare('SELECT * FROM burnchain_db_block_headers order by block_height asc')
+  const stmt_all_burnchain_headers = burnchain_db.prepare(`SELECT * FROM burnchain_db_block_headers ${sqlAddup} order by block_height asc`)
   const stmt_all_burnchain_ops = burnchain_db.prepare('SELECT * FROM burnchain_db_block_ops')
 
   // sortition queries
-  const stmt_all_blocks = sortition_db.prepare('SELECT * FROM snapshots order by block_height desc')
-  const stmt_all_block_commits = sortition_db.prepare('SELECT * FROM block_commits ')
-  const stmt_all_leader_keys = sortition_db.prepare('SELECT * FROM leader_keys')
+  const stmt_all_blocks = sortition_db.prepare(`SELECT * FROM snapshots ${sqlAddup} order by block_height desc `)
+  const stmt_all_block_commits = sortition_db.prepare(`SELECT * FROM block_commits ${sqlAddup}`)
+  const stmt_all_leader_keys = sortition_db.prepare(`SELECT * FROM leader_keys ${sqlAddup}`)
 
   // header queries
   const stmt_all_payments = headers_db.prepare('SELECT * FROM payments')
@@ -232,6 +253,7 @@ export async function getMinerInfo() {
     // console.log("burn_blocks_by_consensus_hash", burn_blocks_by_consensus_hash)
     for (let row of result) {
       // console.log(row.burn_header_hash, row)
+      if (burn_blocks_by_consensus_hash[row.consensus_hash] == undefined) continue;
       burn_blocks_by_consensus_hash[row.consensus_hash].payments.push(row)
     }
   }
@@ -241,10 +263,11 @@ export async function getMinerInfo() {
     // console.log("staging_blocks", result)
     // console.log("staging_blocks.length", result.length)
     // console.log("burn_blocks_by_consensus_hash", burn_blocks_by_consensus_hash)
-          for (let row of result) {
-            // console.log(row.consensus_hash, row)
-            burn_blocks_by_consensus_hash[row.consensus_hash].staging_blocks.push(row)
-          }
+    for (let row of result) {
+      // console.log(row.consensus_hash, row)
+      if (burn_blocks_by_consensus_hash[row.consensus_hash] == undefined) continue;
+      burn_blocks_by_consensus_hash[row.consensus_hash].staging_blocks.push(row)
+    }
   }
 
   function process_block_headers() {
