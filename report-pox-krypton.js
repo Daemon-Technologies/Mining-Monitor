@@ -27,7 +27,7 @@ export async function getMinerInfo(param) {
 
   console.log(sqlAddup)
 
-  if (toHeight < fromHeight)
+  if (parseInt(toHeight)< parseInt(fromHeight))
     return {"Status": "Interval Error"}
 
   //return [sqlAddup]
@@ -147,6 +147,7 @@ export async function getMinerInfo(param) {
 
   function post_process_block_commits() {
     for (let block of burn_blocks_by_height) {
+      //console.log(burn_blocks_by_height)
       for (let block_commit of block.block_commits) {
         block_commit.leader_key = find_leader_key(block_commit.key_block_ptr, block_commit.key_vtxindex)
         block_commit.leader_key_address = block_commit.leader_key.address
@@ -156,7 +157,7 @@ export async function getMinerInfo(param) {
 
   function post_process_miner_stats() {
     let total_burn_prev = 0
-    console.log(burn_blocks_by_height[500])
+    //console.log(burn_blocks_by_height[500])
     for (let block of burn_blocks_by_height) {
       const total_burn = parseInt(block.total_burn) - total_burn_prev
       block.actual_burn = total_burn
@@ -189,11 +190,13 @@ export async function getMinerInfo(param) {
     const result = stmt_all_blocks.all()
     // console.log("tip", result[0])
     const tip_height = result[0].block_height
-
+    /*
     if (result[1].block_height === tip_height) {
+      console.log(result[0], result[1], result[2])
       console.log("tip is not unique")
       process.exit()  // TODO(psq): this is a bit too drastic... but what's the alternative?
     }
+    */
 
     let parent = undefined
 
@@ -413,7 +416,7 @@ export async function getMinerInfo(param) {
 
     const stacks_block_id = block.block_headers.length ? Sha512Trunc256Sum(Buffer.from(block.block_headers[0].block_hash, 'hex'), Buffer.from(block.block_headers[0].consensus_hash, 'hex')) : '-'
     const txids = block.block_headers.length && use_txs ? `[${transactions_by_stacks_block_id[stacks_block_id].map(tx => tx.txid.substring(0, 10)).join(',')}]` : ''
-    
+/*    
     console.log(block.block_height,
       // block.block_commits.map(bc => `${bc.leader_key_address.substring(0, 10)}${bc.txid === block.winning_block_txid ? '*' : ' '}(${bc.key_block_ptr})`).sort((a, b) => a.localeCompare(b)).join(' '),
       block.block_commits.map(bc => `${bc.leader_key_address.substring(0, 10)}${bc.txid === block.winning_block_txid ? '*' : ' '}`).sort((a, b) => a.localeCompare(b)).join(''),
@@ -437,7 +440,7 @@ export async function getMinerInfo(param) {
 
       // block.payments.length ? block.payments[0].index_block_hash : '',
     )
-    
+  */  
     parent_winner_address = current_winner_address
     parent_hash = block.block_headers.length ? block.block_headers[0].block_hash : null
   }
