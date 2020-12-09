@@ -131,7 +131,6 @@ export async function getMinerInfo(param) {
       depth: current_height + 1,
     }
     branches.push(new_branch_info)
-    // console.log("create branch", `p:${parent_hash}`, new_branch_info.name, new_branch_info.height_created)
     return new_branch_info
   }
 
@@ -147,7 +146,6 @@ export async function getMinerInfo(param) {
 
   function post_process_block_commits() {
     for (let block of burn_blocks_by_height) {
-      //console.log(burn_blocks_by_height)
       for (let block_commit of block.block_commits) {
         block_commit.leader_key = find_leader_key(block_commit.key_block_ptr, block_commit.key_vtxindex)
         block_commit.leader_key_address = block_commit.leader_key.address
@@ -157,12 +155,10 @@ export async function getMinerInfo(param) {
 
   function post_process_miner_stats() {
     let total_burn_prev = 0
-    //console.log(burn_blocks_by_height[500])
     for (let block of burn_blocks_by_height) {
       const total_burn = parseInt(block.total_burn) - total_burn_prev
       block.actual_burn = total_burn
       total_burn_prev = parseInt(block.total_burn)
-      // console.log(block.block_height, total_burn)
       for (let block_commit of block.block_commits) {
         if (!miners[block_commit.leader_key_address]) {
           miners[block_commit.leader_key_address] = {
@@ -188,15 +184,7 @@ export async function getMinerInfo(param) {
 
   function process_snapshots() {
     const result = stmt_all_blocks.all()
-    // console.log("tip", result[0])
     const tip_height = result[0].block_height
-    /*
-    if (result[1].block_height === tip_height) {
-      console.log(result[0], result[1], result[2])
-      console.log("tip is not unique")
-      process.exit()  // TODO(psq): this is a bit too drastic... but what's the alternative?
-    }
-    */
 
     let parent = undefined
 
@@ -218,13 +206,13 @@ export async function getMinerInfo(param) {
         console.log("no match", row.block_height, row.burn_header_hash, parent.parent_burn_header_hash)
       }
     }
-    // console.log(burn_blocks_by_height.map(b => b.block_height))
+
     if (burn_blocks_by_height.filter(b => !b).length !== 0) {
       console.log("missing blocks", burn_blocks_by_height.filter(b => !b))
       process.exit()
     }
     console.log(burn_blocks_by_height.length)
-    // console.log("burn_blocks_by_height", JSON.stringify(burn_blocks_by_height, null, 2))
+
   }
 
   function process_leader_keys() {
@@ -319,29 +307,18 @@ export async function getMinerInfo(param) {
 
   function process_transactions() {
     const result = stmt_all_transactions.all()
-    // console.log("transactions", result)
-    // console.log("staging_blocks.length", result.length)
-    // console.log("burn_blocks_by_consensus_hash", burn_blocks_by_consensus_hash)
+
     for (let row of result) {
-      // console.log(row.consensus_hash, row)
       if (!transactions_by_stacks_block_id[row.index_block_hash]) {
         transactions_by_stacks_block_id[row.index_block_hash] = []
       }
       transactions_by_stacks_block_id[row.index_block_hash].push(row)  // TODO(psq): only txid enough?
     }
-    // console.log("transactions_by_stacks_block_id", transactions_by_stacks_block_id)
     for (let key of Object.keys(transactions_by_stacks_block_id)) {
       transaction_count += transactions_by_stacks_block_id[key].length - 1
     }
   }
 
-
-  // CREATE TABLE burnchain_db_block_headers (
-  //     block_height INTEGER NOT NULL,
-  //     block_hash TEXT UNIQUE NOT NULL,
-  //     parent_block_hash TEXT NOT NULL,
-  //     num_txs INTEGER NOT NULL,
-  //     timestamp INTEGER NOT NULL,
   function process_burnchain_blocks() {
     const result = stmt_all_burnchain_headers.all()
     // console.log("process_burnchain_blocks", result)
@@ -351,23 +328,23 @@ export async function getMinerInfo(param) {
 
   }
 
-  // CREATE TABLE burnchain_db_block_ops (
-  //     block_hash TEXT NOT NULL,
-  //     op TEXT NOT NULL,
   function process_burnchain_ops() {
 
     const result = stmt_all_burnchain_ops.all()
     // console.log("process_burnchain_ops", result)
     console.log("========================================================================================================================")
     console.log("Leader key registrations")
+    //console.log(result[0])
     for (let row of result) {
       if (!burnchain_ops_by_burn_hash[row.block_hash]) {
         burnchain_ops_by_burn_hash[row.block_hash] = []
       }
       const op = JSON.parse(row.op)
+      //console.log(op)
       if (op.LeaderBlockCommit) {
         op.LeaderBlockCommit.burn_header_hash_hex = Buffer.from(op.LeaderBlockCommit.burn_header_hash).toString('hex')
-        op.LeaderBlockCommit.public_key = secp256k1.publicKeyConvert(Buffer.from(op.LeaderBlockCommit.input.public_keys[0].key, 'hex'), op.LeaderBlockCommit.input.public_keys[0].compressed).toString('hex')
+        //console.log(op.LeaderBlockCommit);
+        op.LeaderBlockCommit.public_key = secp256k1.publicKeyConvert(Buffer.from(op.LeaderBlockCommit.apparent_sender.public_keys[0].key, 'hex'), op.LeaderBlockCommit.apparent_sender.public_keys[0].compressed).toString('hex')
         //console.log(Buffer.from(op.LeaderBlockCommit.input.public_keys[0].key, 'hex'), op.LeaderBlockCommit.public_key)
         op.LeaderBlockCommit.stacks_address = getAddressFromPublicKey(op.LeaderBlockCommit.public_key, TransactionVersion.Testnet)
         op.LeaderBlockCommit.btc_address = c32.c32ToB58(op.LeaderBlockCommit.stacks_address)
@@ -383,23 +360,34 @@ export async function getMinerInfo(param) {
     console.log("========================================================================================================================")
   }
 
-  
+  console.log("process_burnchain_blocks")
   process_burnchain_blocks()
+  console.log("process_burnchain_ops")
   process_burnchain_ops()
+  console.log("process_snapshots")
   process_snapshots()
+  console.log("process_leader_keys")
   process_leader_keys()
+  console.log("process_block_commits")
   process_block_commits()
+  console.log("process_payments")
   process_payments()
+  console.log("process_staging_blocks")
   process_staging_blocks()
+  console.log("process_block_headers")
   process_block_headers()
 
   if (use_txs) {
     process_transactions()   
   }
 
+  console.log("post_process_block_commits")
   post_process_block_commits()
+  console.log("post_process_miner_stats")
   post_process_miner_stats()
+  console.log("post_process_branches")
   post_process_branches()
+  console.log("post_process_winning_fork")
   post_process_winning_fork()
 
   let stacks_block_height_max = 0
@@ -416,31 +404,7 @@ export async function getMinerInfo(param) {
 
     const stacks_block_id = block.block_headers.length ? Sha512Trunc256Sum(Buffer.from(block.block_headers[0].block_hash, 'hex'), Buffer.from(block.block_headers[0].consensus_hash, 'hex')) : '-'
     const txids = block.block_headers.length && use_txs ? `[${transactions_by_stacks_block_id[stacks_block_id].map(tx => tx.txid.substring(0, 10)).join(',')}]` : ''
-/*    
-    console.log(block.block_height,
-      // block.block_commits.map(bc => `${bc.leader_key_address.substring(0, 10)}${bc.txid === block.winning_block_txid ? '*' : ' '}(${bc.key_block_ptr})`).sort((a, b) => a.localeCompare(b)).join(' '),
-      block.block_commits.map(bc => `${bc.leader_key_address.substring(0, 10)}${bc.txid === block.winning_block_txid ? '*' : ' '}`).sort((a, b) => a.localeCompare(b)).join(''),
-      // block.payments.length,
-      // block.staging_blocks.length,
-      // block.stacks_block_height,
-      block.payments.length ? `${block.payments[0].stacks_block_height}${at_tip}` : '',
-      block.block_headers.length ? `${block.block_headers[0].block_height}` : '-',
-      block.branch_info ? `${block.branch_info.name}${block.on_winning_fork ? '$' : ' '}` : ' ',
-      // block.branch_info ? block.branch_info.height_created : '-',
-      block.block_headers.length ? `s:${block.block_headers[0].block_hash.substring(0, 10)}` : '-',
-      block.block_headers.length ? `p:${block.block_headers[0].parent_block.substring(0, 10)}` : '-',
-      block.block_headers.length ? `c:${block.block_headers[0].consensus_hash.substring(0, 10)}` : '-',
-      stacks_block_id !== '-' ? `i:${stacks_block_id.substring(0, 10)}` : '',
-      block.block_headers.length ? `b:${block.block_headers[0].burn_header_hash.substring(0, 10)}` : '-',
 
-      block.block_headers.length ? `${block.block_headers[0].parent_block === parent_hash ? ((parent_winner_address ? parent_winner_address.leader_key_address : null) === (current_winner_address ? current_winner_address.leader_key_address : null) ? '@+' : '@@') : '  '}` : '  ',
-      block.actual_burn,
-      txids,
-      // (is_argon_or_psq || block.block_headers.length === 0) ? '' : `<================================= ${current_winner_address ? current_winner_address.leader_key_address : 'no winner'}`
-
-      // block.payments.length ? block.payments[0].index_block_hash : '',
-    )
-  */  
     parent_winner_address = current_winner_address
     parent_hash = block.block_headers.length ? block.block_headers[0].block_hash : null
   }
