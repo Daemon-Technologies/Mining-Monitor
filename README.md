@@ -1,15 +1,28 @@
-# stacks-dump
+# Mining-Monitor
 
-Dump information from `stacks-node` storage
+## Krypton Testnet
 
-### Usage
+For Krypton Testnet, we use most of module of [stacks-dump](https://github.com/psq/stacks-dump) as Mining-Monitor base repo. Only modify some details for Mining-Bot Alpha Verion.
+
+## Xenon Testnet
+
+- Only use Bitcoind rpc api.
+- Service layer.
+
+### build and install
+
 ```
-node report-pox-krypton.js /tmp/stacks-testnet-5c87e24790411516
+npm install
+node server.js -t /tmp/stacks-testnet-5c87e24790411516
 ```
 
-or if `stacks-node` is compiled with `--feature tx-log`, to display transactions for each block:
+You will see 
 ```
-cargo build --workspace  --features tx_log --bin stacks-node
+Example app listening at http://localhost:23456
+```
 
-node report-pox-krypton.js -t /tmp/stacks-testnet-5c87e24790411516
+Then you can visit the rpc api by
 ```
+curl -i http://localhost:23456/minerList
+```
+
