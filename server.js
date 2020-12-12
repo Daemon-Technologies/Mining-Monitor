@@ -23,10 +23,10 @@ app.all("*", function (req, res, next) {
   }
 })
 
-app.get('/minerList', async (req, res) => {
+app.get('/mining_info', async (req, res) => {
   console.log(req.query)
   let result = await getMinerInfo(req.query)
-  console.log("result:", result)
+  //console.log("result:", result)
   res.send(result)
 })
 /*

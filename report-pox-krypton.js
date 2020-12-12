@@ -9,28 +9,7 @@ import c32 from 'c32check'
 
 
 export async function getMinerInfo(param) {
-  
-  let fromHeight = param.fromHeight
-  let toHeight = param.toHeight
-  console.log(fromHeight,toHeight)
-  let sqlAddup = ""
-  if (fromHeight == undefined || toHeight == undefined){
-    if (toHeight !== undefined)
-      sqlAddup = `where block_height <= ${toHeight}`
-    else if (fromHeight !== undefined)
-      sqlAddup = `where block_height >= ${fromHeight}`
-  }
-  else{
-    sqlAddup = `where block_height >= ${fromHeight} and block_height <= ${toHeight}`
-  }
-    
 
-  console.log(sqlAddup)
-
-  if (parseInt(toHeight)< parseInt(fromHeight))
-    return {"Status": "Interval Error"}
-
-  //return [sqlAddup]
   const root = ''
 
   const burnchain_db_path = 'burnchain/db/bitcoin/regtest/burnchain.db'
@@ -67,13 +46,13 @@ export async function getMinerInfo(param) {
   })
 
   // burnchain queries
-  const stmt_all_burnchain_headers = burnchain_db.prepare(`SELECT * FROM burnchain_db_block_headers ${sqlAddup} order by block_height asc`)
+  const stmt_all_burnchain_headers = burnchain_db.prepare(`SELECT * FROM burnchain_db_block_headers order by block_height asc`)
   const stmt_all_burnchain_ops = burnchain_db.prepare('SELECT * FROM burnchain_db_block_ops')
 
   // sortition queries
-  const stmt_all_blocks = sortition_db.prepare(`SELECT * FROM snapshots ${sqlAddup} order by block_height desc `)
-  const stmt_all_block_commits = sortition_db.prepare(`SELECT * FROM block_commits ${sqlAddup}`)
-  const stmt_all_leader_keys = sortition_db.prepare(`SELECT * FROM leader_keys ${sqlAddup}`)
+  const stmt_all_blocks = sortition_db.prepare(`SELECT * FROM snapshots order by block_height desc `)
+  const stmt_all_block_commits = sortition_db.prepare(`SELECT * FROM block_commits`)
+  const stmt_all_leader_keys = sortition_db.prepare(`SELECT * FROM leader_keys`)
 
   // header queries
   const stmt_all_payments = headers_db.prepare('SELECT * FROM payments')
@@ -86,18 +65,17 @@ export async function getMinerInfo(param) {
   const stmt_all_transactions = use_txs ? headers_db.prepare('SELECT * FROM transactions') : null
 
   let transaction_count = 0
+  let stacks_blocks_by_height = []
   let burn_blocks_by_height = []
   let burn_blocks_by_burn_header_hash = {}
   let burn_blocks_by_consensus_hash = {}
   let stacks_blocks_by_stacks_block_hash = {}
   let transactions_by_stacks_block_id = {}
-  let burnchain_blocks_by_burn_hash = {}
   let burnchain_ops_by_burn_hash = {}
 
-  let burn_orphans = []
   let miners = {}
-  let win_total = 0
   let actual_win_total = 0
+  let win_total = 0
 
   const branches = [
     {
@@ -153,34 +131,7 @@ export async function getMinerInfo(param) {
     }
   }
 
-  function post_process_miner_stats() {
-    let total_burn_prev = 0
-    for (let block of burn_blocks_by_height) {
-      const total_burn = parseInt(block.total_burn) - total_burn_prev
-      block.actual_burn = total_burn
-      total_burn_prev = parseInt(block.total_burn)
-      for (let block_commit of block.block_commits) {
-        if (!miners[block_commit.leader_key_address]) {
-          miners[block_commit.leader_key_address] = {
-            mined: 0,
-            won: 0,
-            burned: 0,
-            total_burn: 0,
-            paid: 0,
-            actual_win: 0,
-          }
-        }
-        const miner = miners[block_commit.leader_key_address]
-        miner.mined++
-        miner.burned += parseInt(block_commit.burn_fee)
-        miner.total_burn += total_burn
-        if (block_commit.txid === block.winning_block_txid) {
-          miner.won++
-          win_total++
-        }
-      }
-    }
-  }
+
 
   function process_snapshots() {
     const result = stmt_all_blocks.all()
@@ -211,7 +162,7 @@ export async function getMinerInfo(param) {
       console.log("missing blocks", burn_blocks_by_height.filter(b => !b))
       process.exit()
     }
-    console.log(burn_blocks_by_height.length)
+    console.log("Burnchain Height:", burn_blocks_by_height.length)
 
   }
 
@@ -273,6 +224,36 @@ export async function getMinerInfo(param) {
     }
   }
 
+
+  function post_process_miner_stats() {
+    let total_burn_prev = 0
+    for (let block of burn_blocks_by_height) {
+      const total_burn = parseInt(block.total_burn) - total_burn_prev
+      block.actual_burn = total_burn
+      total_burn_prev = parseInt(block.total_burn)
+      for (let block_commit of block.block_commits) {
+        if (!miners[block_commit.leader_key_address]) {
+          miners[block_commit.leader_key_address] = {
+            mined: 0,
+            won: 0,
+            burned: 0,
+            total_burn: 0,
+            paid: 0,
+            actual_win: 0,
+          }
+        }
+        const miner = miners[block_commit.leader_key_address]
+        miner.mined++
+        miner.burned += parseInt(block_commit.burn_fee)
+        miner.total_burn += total_burn
+        if (block_commit.txid === block.winning_block_txid) {
+          miner.won++
+          win_total++
+        }
+      }
+    }
+  }
+
   function post_process_winning_fork() {
     const sorted_branches = branches.sort((a, b) => a.depth - b.depth)
     const highest_branch = sorted_branches[sorted_branches.length - 1]
@@ -284,7 +265,11 @@ export async function getMinerInfo(param) {
       burn_block.on_winning_fork = true
       burn_block.branch_info.winning_fork = true
       const winning_block_txid = burn_block.winning_block_txid
-      const winner = burn_block.block_commits.find(bc => bc.txid === burn_block.winning_block_txid)
+      //console.log(burn_block)
+      const winnerIndex = burn_block.block_commits.findIndex(bc => bc.txid === burn_block.winning_block_txid)
+      const winner = burn_block.block_commits[winnerIndex]
+      winner.stacks_block_height = burn_block.stacks_block_height
+      stacks_blocks_by_height.push(winner)
       const winning_miner = miners[winner.leader_key_address]
       winning_miner.actual_win++
       actual_win_total++
@@ -410,17 +395,17 @@ export async function getMinerInfo(param) {
   }
 
   if (use_txs) {
-    console.log("========================================================================================================================")
-    console.log("total transactions (excl coinbase)", transaction_count)
+    //console.log("========================================================================================================================")
+    //console.log("total transactions (excl coinbase)", transaction_count)
   }
-  console.log("========================================================================================================================")
-  console.log("STX address/BTC address - actual wins/total wins/total mined %won %actual wins - paid satoshis Th[theoritical win%] (avg paid)")
+  //console.log("========================================================================================================================")
+  //console.log("STX address/BTC address - actual wins/total wins/total mined %won %actual wins - paid satoshis Th[theoritical win%] (avg paid)")
   
   let miners_result = []
 
   for (let miner_key of Object.keys(miners).sort()) {
     const miner = miners[miner_key]
-    console.log(`${miner_key}/${c32.c32ToB58(miner_key)} ${miner.actual_win}/${miner.won}/${miner.mined} ${(miner.won / miner.mined * 100).toFixed(2)}% ${(miner.actual_win / actual_win_total * 100).toFixed(2)}% - ${miner.burned} - Th[${(miner.burned / miner.total_burn * 100).toFixed(2)}%] (${miner.burned / miner.mined})`)
+    //console.log(`${miner_key}/${c32.c32ToB58(miner_key)} ${miner.actual_win}/${miner.won}/${miner.mined} ${(miner.won / miner.mined * 100).toFixed(2)}% ${(miner.actual_win / actual_win_total * 100).toFixed(2)}% - ${miner.burned} - Th[${(miner.burned / miner.total_burn * 100).toFixed(2)}%] (${miner.burned / miner.mined})`)
     miner.average_burn = miner.burned / miner.mined
     miner.normalized_wins = miner.won / miner.average_burn
     const miner_result = {
@@ -433,6 +418,19 @@ export async function getMinerInfo(param) {
     }
     miners_result.push(miner_result)
   }
-  console.log(miners_result)
-  return miners_result;
+
+  let stacks_block_results = []
+
+  for (let stacks_block of stacks_blocks_by_height){
+    const stacks_block_result = {
+      stacks_block_height: stacks_block.stacks_block_height, 
+      stx_address: stacks_block.leader_key_address,
+      btc_address: c32.c32ToB58(stacks_block.leader_key_address),
+      burn_fee: stacks_block.burn_fee
+    }
+    stacks_block_results.push(stacks_block_result)
+  }
+
+  console.log("Stacks Chain Height:", stacks_blocks_by_height.length)
+  return {miner_info: miners_result, mining_info: stacks_block_results}
 }
