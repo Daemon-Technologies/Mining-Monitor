@@ -1,6 +1,27 @@
 import express from 'express';
 import { getMinerInfo } from './report-pox-krypton.js'
 import heapdump from 'heapdump';
+import redis from "redis"
+import {promisify}  from "util"
+
+let clientConfig = {};
+
+if (process.env.NODE_ENV === "production") {
+  clientConfig = { url: process.env.REDIS_URL };
+} else {
+  clientConfig = {
+    host: process.env.REDIS_HOST || "127.0.0.1",
+    port: process.env.REDIS_PORT || "6379",
+  };
+}
+
+const client = redis.createClient(clientConfig);
+
+const redisGetAsync = promisify(client.get).bind(client);
+
+client.on("error", function(error) {
+  console.error(error);
+});
 
 const app = express()
 const port = 23456
@@ -9,7 +30,14 @@ const root = ''
 const data_root_path = `${root}${process.argv[3] || process.argv[2]}`
 const use_txs = process.argv[2] === '-t'
 
-
+const getRedisData = () => {
+  const miningInfoPromise = redisGetAsync("mining_info");
+  const minerInfoPromise = redisGetAsync("miner_info");
+  return Promise.all([miningInfoPromise, minerInfoPromise])
+  .then(([miningInfo, minerInfo]) => {
+    return { miningInfo:miningInfo, minerInfo:minerInfo }
+  })
+}
 
 app.all("*", function (req, res, next) {
   res.header("Access-Control-Allow-Origin", req.headers.origin || '*');
@@ -23,17 +51,36 @@ app.all("*", function (req, res, next) {
   }
 })
 
-app.get('/mining_info', async (req, res) => {
-  console.log(req.query)
-  let result = await getMinerInfo(req.query)
-  //console.log("result:", result)
-  res.send(result)
+async function update() {
+  console.log("update")
+  let result = await getMinerInfo()
+  client.set("mining_info", JSON.stringify(result.mining_info))
+  client.set("miner_info", JSON.stringify(result.miner_info))
+  return "ok"
+}
+
+app.get('/mining_info', (req, res) => {
+  getRedisData().then(
+    (data) => {
+      let resp = {miner_info: JSON.parse(data.minerInfo), mining_info: JSON.parse(data.miningInfo)}
+      return res.send(resp)
+    }
+  )
 })
-/*
+
+app.get('/minerList', (req, res) => {
+  getRedisData().then(
+    (data) => {
+      let resp = {miner_info: JSON.parse(data.minerInfo), mining_info: JSON.parse(data.miningInfo)}
+      return res.send(resp)
+    }
+  )
+})
+
 setInterval(function(){
-  heapdump.writeSnapshot('./' + Date.now() + '.heapsnapshot');
-}, 360000);
-*/
+  update();
+}, 60000);
+
 app.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`)
 })
