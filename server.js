@@ -79,9 +79,10 @@ app.get('/minerList', (req, res) => {
 
 setInterval(function(){
   update();
-}, 60000);
+}, 600000);
 
 app.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`)
 })
+
 
