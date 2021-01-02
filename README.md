@@ -23,6 +23,6 @@ Example app listening at http://localhost:23456
 
 Then you can visit the rpc api by
 ```
-curl -i http://localhost:23456/minerList
+curl -i http://localhost:23456/mining_info
 ```
 
