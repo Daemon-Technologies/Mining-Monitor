@@ -7,8 +7,12 @@ import c32 from 'c32check'
 
 
 
-
 export async function getMinerInfo(param) {
+  //Krypton Competition Data
+  let start_height = 982
+  let start_height_stacks = 484
+  let end_height = 7055
+  let end_height_stacks = 1333
 
   const root = ''
 
@@ -228,6 +232,7 @@ export async function getMinerInfo(param) {
   function post_process_miner_stats() {
     let total_burn_prev = 0
     for (let block of burn_blocks_by_height) {
+      if (block.block_height < start_height || block.block_height > end_height) continue;
       const total_burn = parseInt(block.total_burn) - total_burn_prev
       block.actual_burn = total_burn
       total_burn_prev = parseInt(block.total_burn)
@@ -261,7 +266,13 @@ export async function getMinerInfo(param) {
     let current_tip = highest_branch.tip
     while (current_tip !== '0000000000000000000000000000000000000000000000000000000000000000') {
       const stacks_block = stacks_blocks_by_stacks_block_hash[current_tip]
+      //console.log(stacks_block)
+      if (stacks_block.block_height < start_height_stacks || stacks_block.block_height > end_height_stacks) {
+        current_tip = stacks_block.parent_block
+        continue;
+      }
       const burn_block = burn_blocks_by_burn_header_hash[stacks_block.burn_header_hash]
+
       burn_block.on_winning_fork = true
       burn_block.branch_info.winning_fork = true
       const winning_block_txid = burn_block.winning_block_txid
