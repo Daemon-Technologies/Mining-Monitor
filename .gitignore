@@ -8,3 +8,6 @@ newrelic_agent.log
 npm-debug*
 .envrc
 .vscode
+
+package-lock.json
+yarn.lock
