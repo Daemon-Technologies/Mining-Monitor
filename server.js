@@ -1,8 +1,8 @@
 import express from 'express';
-import { getMinerInfo } from './report-pox-krypton.js'
+import { getMinerInfo } from './rpc.js'
 import heapdump from 'heapdump';
 import redis from "redis"
-import {promisify}  from "util"
+import { promisify }  from "util"
 
 let clientConfig = {};
 
