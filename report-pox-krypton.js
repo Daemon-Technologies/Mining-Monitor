@@ -8,17 +8,17 @@ import c32 from 'c32check'
 
 
 export async function getMinerInfo(param) {
-  //Krypton Competition Data
-  let start_height = 982
-  let start_height_stacks = 484
-  let end_height = 7055
-  let end_height_stacks = 1333
+  //Xenon Competition Data
+  let start_height = 0
+  let start_height_stacks = 0
+  let end_height = 99999999
+  let end_height_stacks = 99999999
 
   const root = ''
 
-  const burnchain_db_path = 'burnchain/db/bitcoin/regtest/burnchain.db'
+  const burnchain_db_path = 'burnchain/db/bitcoin/testnet/burnchain.db'
 
-  const sortition_db_path = "burnchain/db/bitcoin/regtest/sortition.db/marf"
+  const sortition_db_path = "burnchain/db/bitcoin/testnet/sortition.db/marf"
 
   const vm_db_path = "chainstate/chain-00000080-testnet/vm/index"
 
@@ -43,12 +43,12 @@ export async function getMinerInfo(param) {
     readonly: true,
     fileMustExist: true,
   })
-
+/*
   const staging_db = new Database(`${data_root_path}/${staging_db_path}`, {
     readonly: true,
     fileMustExist: true,
   })
-
+*/
   // burnchain queries
   const stmt_all_burnchain_headers = burnchain_db.prepare(`SELECT * FROM burnchain_db_block_headers order by block_height asc`)
   const stmt_all_burnchain_ops = burnchain_db.prepare('SELECT * FROM burnchain_db_block_ops')
@@ -63,7 +63,7 @@ export async function getMinerInfo(param) {
   const stmt_all_block_headers = headers_db.prepare('SELECT * FROM block_headers')
 
   // staging queries
-  const stmt_all_staging_blocks = staging_db.prepare('SELECT * FROM staging_blocks')
+  //const stmt_all_staging_blocks = staging_db.prepare('SELECT * FROM staging_blocks')
 
   // transactions query
   const stmt_all_transactions = use_txs ? headers_db.prepare('SELECT * FROM transactions') : null
@@ -128,6 +128,7 @@ export async function getMinerInfo(param) {
 
   function post_process_block_commits() {
     for (let block of burn_blocks_by_height) {
+      console.log(burn_blocks_by_height)
       for (let block_commit of block.block_commits) {
         block_commit.leader_key = find_leader_key(block_commit.key_block_ptr, block_commit.key_vtxindex)
         block_commit.leader_key_address = block_commit.leader_key.address
@@ -203,7 +204,7 @@ export async function getMinerInfo(param) {
       burn_blocks_by_consensus_hash[row.consensus_hash].payments.push(row)
     }
   }
-
+/*
   function process_staging_blocks() {
     const result = stmt_all_staging_blocks.all()
     // console.log("staging_blocks", result)
@@ -215,7 +216,7 @@ export async function getMinerInfo(param) {
       burn_blocks_by_consensus_hash[row.consensus_hash].staging_blocks.push(row)
     }
   }
-
+*/
   function process_block_headers() {
     const result = stmt_all_block_headers.all()
     // console.log("stmt_all_block_headers", result)
@@ -368,8 +369,8 @@ export async function getMinerInfo(param) {
   process_block_commits()
   console.log("process_payments")
   process_payments()
-  console.log("process_staging_blocks")
-  process_staging_blocks()
+  //console.log("process_staging_blocks")
+  //process_staging_blocks()
   console.log("process_block_headers")
   process_block_headers()
 
