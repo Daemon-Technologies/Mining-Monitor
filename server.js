@@ -1,8 +1,8 @@
 import express from 'express';
-import { getMinerInfo } from './report-pox-krypton.js'
+import { getMinerInfo } from './rpc.js'
 import heapdump from 'heapdump';
 import redis from "redis"
-import {promisify}  from "util"
+import { promisify }  from "util"
 
 let clientConfig = {};
 
@@ -22,6 +22,7 @@ const redisGetAsync = promisify(client.get).bind(client);
 client.on("error", function(error) {
   console.error(error);
 });
+
 
 const app = express()
 const port = 23456
@@ -54,10 +55,30 @@ app.all("*", function (req, res, next) {
 async function update() {
   console.log("update")
   let result = await getMinerInfo()
+  
+  console.log(JSON.stringify(result.mining_info))
+  console.log("in")
   client.set("mining_info", JSON.stringify(result.mining_info))
   client.set("miner_info", JSON.stringify(result.miner_info))
+  console.log("in2")
   return "ok"
 }
+
+app.get('/update', (req, res) => {
+  client.set("mining_info", "abc")
+  res.json("ok")
+})
+
+app.get('/get', (req, res) => {
+  client.set("mining_info", '{"name": "abc"}')
+  getRedisData().then(
+    (data) => {
+      console.log(data)
+      let resp = {miner_info: JSON.parse(data.minerInfo), mining_info: JSON.parse(data.miningInfo)}
+      return res.send(resp)
+    }
+  )
+})
 
 app.get('/mining_info', (req, res) => {
   getRedisData().then(
@@ -68,21 +89,14 @@ app.get('/mining_info', (req, res) => {
   )
 })
 
-app.get('/minerList', (req, res) => {
-  getRedisData().then(
-    (data) => {
-      let resp = {miner_info: JSON.parse(data.minerInfo), mining_info: JSON.parse(data.miningInfo)}
-      return res.send(resp)
-    }
-  )
-})
-
 setInterval(function(){
   update();
-}, 600000);
+}, 300000);
+
 
 app.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`)
 })
 
 update()
+
