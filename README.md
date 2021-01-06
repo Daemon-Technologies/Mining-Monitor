@@ -2,7 +2,7 @@
 
 ## Krypton Testnet
 
-For Krypton Testnet, we use most of module of [stacks-dump](https://github.com/psq/stacks-dump) as Mining-Monitor base repo. Only modify some details for Mining-Bot Alpha Verion.
+For Krypton Testnet, we use most modules of [stacks-dump](https://github.com/psq/stacks-dump) as Mining-Monitor base repo. Only modify some details for Mining-Bot Alpha Verion.
 
 ## Xenon Testnet
 
@@ -23,6 +23,6 @@ Example app listening at http://localhost:23456
 
 Then you can visit the rpc api by
 ```
-curl -i http://localhost:23456/minerList
+curl -i http://localhost:23456/mining_info
 ```
 
