@@ -16,11 +16,13 @@ export async function getMinerInfo(param) {
 
   const root = ''
 
-  const burnchain_db_path = 'burnchain/db/bitcoin/testnet/burnchain.db'
+  const burnchain_db_path = 'burnchain/db/bitcoin/mainnet/burnchain.db'
 
-  const sortition_db_path = "burnchain/db/bitcoin/testnet/sortition.db/marf"
+  const sortition_db_path = "burnchain/db/bitcoin/mainnet/sortition.db/marf"
 
-  const vm_db_path = "chainstate/chain-00000080-testnet/vm/index"
+  const vm_db_path = "chainstate/chain-01000000-mainnet/vm/index"
+
+  const staging_db_path = `chainstate/chain-01000000-mainnet/vm/index`
 
   const data_root_path = `${root}${process.argv[3] || process.argv[2]}`
   console.log(data_root_path)
@@ -41,6 +43,11 @@ export async function getMinerInfo(param) {
     fileMustExist: true,
   })
 
+  const staging_db = new Database(`${data_root_path}/${staging_db_path}`, {
+    readonly: true,
+    fileMustExist: true,
+  })
+
   // burnchain queries
   const stmt_all_burnchain_ops = burnchain_db.prepare('SELECT * FROM burnchain_db_block_ops')
 
@@ -54,7 +61,7 @@ export async function getMinerInfo(param) {
   const stmt_all_block_headers = headers_db.prepare('SELECT * FROM block_headers')
 
   // staging queries
-  //const stmt_all_staging_blocks = staging_db.prepare('SELECT * FROM staging_blocks')
+  const stmt_all_staging_blocks = staging_db.prepare('SELECT * FROM staging_blocks')
 
   // transactions query
   const stmt_all_transactions = use_txs ? headers_db.prepare('SELECT * FROM transactions') : null
@@ -198,7 +205,7 @@ export async function getMinerInfo(param) {
       burn_blocks_by_consensus_hash[row.consensus_hash].payments.push(row)
     }
   }
-/*
+
   function process_staging_blocks() {
     const result = stmt_all_staging_blocks.all()
     // console.log("staging_blocks", result)
@@ -210,7 +217,7 @@ export async function getMinerInfo(param) {
       burn_blocks_by_consensus_hash[row.consensus_hash].staging_blocks.push(row)
     }
   }
-*/
+
   function process_block_headers() {
     const result = stmt_all_block_headers.all()
     // console.log("stmt_all_block_headers", result)
@@ -357,7 +364,8 @@ export async function getMinerInfo(param) {
   console.log("process_payments")
   process_payments()
   //console.log("process_staging_blocks")
-  //process_staging_blocks()
+  process_staging_blocks()
+  
   console.log("process_block_headers")
   process_block_headers()
 
