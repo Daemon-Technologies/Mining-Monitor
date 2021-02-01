@@ -1,13 +1,17 @@
 # Mining-Monitor
 
-## Krypton Testnet
+Now, Daemon Technologies decide to split Mining-Monitor into a seperated project which provides:
+- GUI to search Mining-related information
+- Flexible RPC API to Fetch Mining-Related data
+
+## Krypton Testnet(Not Supported)
 
 For Krypton Testnet, we use most modules of [stacks-dump](https://github.com/psq/stacks-dump) as Mining-Monitor base repo. Only modify some details for Mining-Bot Alpha Verion.
 
-## Xenon Testnet
+## Mainnet & Xenon Testnet
 
-- Only use Bitcoind rpc api.
-- Service layer.
+- Use stacks-node database to computate the information.
+- Create Several RPC API for searching mining_info & block_info & miner_info
 
 ### build and install
 
